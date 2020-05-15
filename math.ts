@@ -22,20 +22,20 @@ class Vec2 {
         this.y = y;
     }
 
-    public static add(a: Vec2, b: Vec2) : Vec2 {
-        return new Vec2(a.x + b.x, a.y + b.y);
+    public add(b: Vec2) : Vec2 {
+        return new Vec2(this.x + b.x, this.y + b.y);
     }
 
-    public static sub(a: Vec2, b: Vec2) : Vec2 {
-        return new Vec2(a.x - b.x, a.y - b.y);
+    public sub(b: Vec2) : Vec2 {
+        return new Vec2(this.x - b.x, this.y - b.y);
     }
 
-    public static dot(a: Vec2, b: Vec2) : number {
-        return a.x * b.x + a.y * b.y;
+    public dot(b: Vec2) : number {
+        return this.x * b.x + this.y * b.y;
     }
 
-    public static cross(a: Vec2, b: Vec2) : number {
-        return a.x * b.y - a.y * b.x;
+    public cross(b: Vec2) : number {
+        return this.x * b.y - this.y * b.x;
     }
 
     public normalized() : Vec2 {
@@ -62,12 +62,13 @@ class Vec2 {
     }
 
     static lineIntersection(start, end, oStart, oEnd) : Vec2 {
-        let r = Vec2.sub(end, start);
-        let s = Vec2.sub(oEnd, oStart);
-        let t = Vec2.cross(Vec2.sub(oStart, start), s.div(Vec2.cross(r, s)));
-        return Vec2.add(start, r.scale(t));
+        let r = end.sub(start);
+        let s = oEnd.sub(oStart);
+        let t = oStart.sub(start).cross(s.div(r.cross(s)));
+        return start.add(r.scale(t));
     }
 
+    /*
     static lineIntersection2(v1, v2, v3, v4) : Vec2 {
         let x = Vec2.cross(v1, v2);
         let y = Vec2.cross(v3, v4);
@@ -76,4 +77,5 @@ class Vec2 {
         let b = Vec2.cross(new Vec2(x, v1.y - v2.y), new Vec2(y, v3.y - v4.y)) / det;
         return new Vec2(a, b);
     }
+    */
 }
