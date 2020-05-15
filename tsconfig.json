@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "module": "none",
+        "outFile": "./build/main.js",
+        "lib": ["ES5", "ES2015", "DOM", "ScriptHost"],
+        "noImplicitAny": false,
+        "removeComments": true,
+        "preserveConstEnums": true,
+        "sourceMap": true
+    },
+    "files": [
+        "math.ts",
+        "gfxdata.ts",
+        "textures.ts",
+        "editor.ts",
+        "main.ts",
+    ]
+}
