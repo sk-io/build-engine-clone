@@ -18,6 +18,9 @@ function loadPaletteAndTextures() {
     textures = new Array(2);
     loadTex(0, 32, 32, tex0b64);
     loadTex(1, 16, 16, tex1b64);
+
+    tex0b64 = null;
+    tex1b64 = null;
 }
 
 function loadTex(tex, w, h, b64) {
@@ -34,7 +37,4 @@ function loadTex(tex, w, h, b64) {
             //textures[0].pixels[x + y * textures[0].width] = (x * 4 ^ Math.floor(Math.random() * y)) & 0xFF;
         }
     }
-    // free memory
-    bin = null;
-    b64 = null;
 }
