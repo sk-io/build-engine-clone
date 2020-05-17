@@ -68,14 +68,4 @@ class Vec2 {
         return start.add(r.scale(t));
     }
 
-    /*
-    static lineIntersection2(v1, v2, v3, v4) : Vec2 {
-        let x = Vec2.cross(v1, v2);
-        let y = Vec2.cross(v3, v4);
-        let det = Vec2.cross(Vec2.sub(v1, v2), Vec2.sub(v3, v4));
-        let a = Vec2.cross(new Vec2(x, v1.x - v2.x), new Vec2(y, v3.x - v4.x)) / det;
-        let b = Vec2.cross(new Vec2(x, v1.y - v2.y), new Vec2(y, v3.y - v4.y)) / det;
-        return new Vec2(a, b);
-    }
-    */
 }

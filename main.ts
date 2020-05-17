@@ -167,9 +167,6 @@ async function debugPause(time = 1000) {
 }
 
 function gameFrame(delta: number) {
-    //await debugPause();
-    
-
     let h = Math.sin(Date.now() * 0.001) * 2.5 + 0.5;
     level.sectors[2].floorHeight = h + 0.2;
     level.sectors[2].ceilingHeight = h + 2.6;
@@ -284,40 +281,6 @@ function run() {
     window.addEventListener("mousedown", mouseDown);
     window.addEventListener("mouseup", mouseUp);
     window.addEventListener("mousemove", mouseMove);
-
-    /*
-    let verts = [
-        new Vec2(4, 2),
-        new Vec2(8, 2),
-        new Vec2(8, 5),
-        new Vec2(5, 6),
-        new Vec2(2, 5),
-        new Vec2(2, 9),
-    ];
-
-    // todo: put edges in separate array and index them
-    // problem: cant maintain clockwiseness per sector then
-
-    // MUST BE CLOCKWISE
-    let sectors = [
-        new Sector([
-            new Edge(0, 1, -1, {r: 255, g: 0, b: 255}),
-            new Edge(1, 2, -1, {r: 255, g: 255, b: 255}, 0, 5),
-            new Edge(2, 3, -1, {r: 0, g: 0, b: 255}),
-            new Edge(3, 0,  1),
-        ], {r: 100, g: 50, b: 50}, {r: 127, g: 182, b: 255}),
-        new Sector([
-            new Edge(0, 3, 0),
-            new Edge(3, 4, 2),
-            new Edge(4, 0, -1, {r: 0, g: 255, b: 255}),
-        ], {r: 50, g: 100, b: 50}),
-        new Sector([
-            new Edge(4, 3, 1),
-            new Edge(5, 4, -1, {r: 255, g: 255, b: 255}),
-            new Edge(3, 5, -1, {r: 255, g: 255, b: 255}, 0, 0.5),
-        ], {r: 50, g: 50, b: 100}),
-    ];
-    */
 
     let verts = [
         new Vec2(1, 1),
