@@ -38,17 +38,8 @@ class Sector {
         let z = -(h - camera.height) / yc;
         let xc = (x / canvas.width - 0.5) * 2 * z;
 
-        //let pos = new Vec2(xc * z, z).rotate(-camera.angle);
-        //pos = Vec2.add(pos, new Vec2(camera.position.y, camera.position.x));
-        //pos = pos.scale(this.texScale);
-        //let sin = Math.sin(angle);
-        //let cos = Math.cos(angle);
-        //return new Vec2(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
-
-
         let px = (xc * camera.nCos - z * camera.nSin + camera.position.y) * this.texScale;
         let py = (xc * camera.nSin + z * camera.nCos + camera.position.x) * this.texScale;
-
 
         const tex = ceil ? this.ceilTex : this.floorTex;
         const w = textures[tex].width;
@@ -147,11 +138,6 @@ class Sector {
             let leftXS = Math.floor(leftX);
             let rightX = (rightClipped.y / (rightClipped.x * hfov) + 1) / 2 * canvas.width;
             let rightXS = Math.floor(rightX);
-
-            if (cutLeft && cutRight) {
-                //leftX = 0;
-                //rightX = canvas.width;
-            }
 
             // tex scale, todo: precompute these
             let horScale = right.sub(left).mag() / 8 * v.texScale.x;

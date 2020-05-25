@@ -170,18 +170,24 @@ function editorMouseEvent(evt : MouseEvent, state: boolean) {
     if (editor.mode == EditorMode.VERTEX) {
         if (evt.button == 0) {
             if (state) {
-                if (evt.shiftKey) {
-                    level.vertices.push(pos);
-                } else {
-                    let vi = editorPickVertex(pos);
+                let vi = editorPickVertex(pos);
 
-                    if (vi != -1) {
-                        editor.movingVert = vi;
-                    }
+                if (vi != -1) {
+                    editor.movingVert = vi;
+                } else {
+                    level.vertices.push(pos);
                 }
             } else {
                 if (editor.movingVert != -1)
                     editor.movingVert = -1;
+            }
+        } else if (evt.button == 1) {
+            if (state) {
+                let vi = editorPickVertex(pos);
+
+                if (vi != -1) {
+                    // remove vert. fucks everything up
+                }
             }
         }
     } else {
