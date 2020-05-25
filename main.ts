@@ -10,7 +10,9 @@ var level : Level;
 var camera : Camera;
 var controls : boolean[] = new Array(6);
 var lastDate = Date.now();
-var drawRegion : [number, number][];
+var portalRegion : [number, number][];
+var ceilingRegion : [number, number][]; // bottom line
+var floorRegion : [number, number][]; // top line
 var fog = 0.75;
 
 interface Camera {
@@ -202,25 +204,27 @@ function gameFrame(delta: number) {
 
     camera.height = level.sectors[camera.sector].floorHeight + 1.75;
 
-    /*
+    
     for (var y = 0; y < canvas.height; y++) {
         for (var x = 0; x < canvas.width; x++) {
             let i = (x + y * canvas.width) * 4;
-            data[i]     = 255;
+            data[i]     = 0;
             data[i + 1] = 0;
-            data[i + 2] = 255;
+            data[i + 2] = 0;
             data[i + 3] = 255;
         }
     }
-    */
+    
 
     camera.nSin = Math.sin(-camera.angle);
     camera.nCos = Math.cos(-camera.angle);
 
     for (var x = 0; x < canvas.width; x++) {
-        drawRegion[x] = [0, canvas.height];
+        portalRegion[x] = [0, canvas.height];
+        ceilingRegion[x] = [0, canvas.height];
+        floorRegion[x] = [0, canvas.height];
     }
-    level.sectors[camera.sector].draw(0, 0, canvas.width);
+    level.sectors[camera.sector].draw(0, 0, canvas.width, 0, canvas.height);
     //await debugPause(1000);
 
     //let i = (canvas.width / 2 + canvas.height / 2 * canvas.width) * 4;
@@ -277,7 +281,9 @@ function run() {
         }
     }
 
-    drawRegion = new Array(canvas.width);
+    portalRegion = new Array(canvas.width);
+    ceilingRegion = new Array(canvas.width);
+    floorRegion = new Array(canvas.width);
 
     window.addEventListener("keydown", keyDown, false);
     window.addEventListener("keyup", keyUp, false);

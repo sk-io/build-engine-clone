@@ -18,6 +18,19 @@ class Sector {
         this.texScale = texScale;
     }
 
+    private projHorizontalPoint(x: number, y: number, ceil: boolean): Vec2 {
+        let h = ceil ? this.ceilingHeight : this.floorHeight;
+
+        let yc = (y / canvas.height - 0.5) * 2;
+        let z = -(h - camera.height) / yc;
+        let xc = (x / canvas.width - 0.5) * 2 * z;
+
+        let px = (xc * camera.nCos - z * camera.nSin + camera.position.y) * this.texScale;
+        let py = (xc * camera.nSin + z * camera.nCos + camera.position.x) * this.texScale;
+
+        return new Vec2(px, py);
+    }
+
     private samplePlane(x: number, y: number, ceil: boolean) : Color {
         let h = ceil ? this.ceilingHeight : this.floorHeight;
 
@@ -44,11 +57,56 @@ class Sector {
         return applyFog(textures[tex].pixels[texX + texY * w], z);
     }
 
-    public draw(depth: number, windowLeft: number, windowRight: number) {
+    private drawFlat(windowLeft: number, windowRight: number, windowTop: number, windowBottom: number, ceil: boolean, region: [number, number][]) {
+        let tex = textures[ceil ? this.ceilTex : this.floorTex];
+
+        for (let y = windowTop; y < windowBottom; y++) {
+            let h = ceil ? this.ceilingHeight : this.floorHeight;
+
+            let yc = (y / canvas.height - 0.5) * 2;
+            let z = -(h - camera.height) / yc;
+
+            let p0 = this.projHorizontalPoint(windowLeft, y, ceil);
+            let p1 = this.projHorizontalPoint(windowRight, y, ceil);
+
+            for (let x = windowLeft; x < windowRight; x++) {
+                
+                if (y >= region[x][0] && y < region[x][1]) {
+                    let complete = (x - windowLeft) / (windowRight - windowLeft);
+
+                    let tx = Math.floor(lerp(p0.x, p1.x, complete)) & (tex.width - 1);
+                    let ty = Math.floor(lerp(p0.y, p1.y, complete)) & (tex.width - 1);
+
+                    let color = applyFog(tex.pixels[tx + ty * tex.width], z);
+                    let i = (x + y * canvas.width) * 4;
+                    data[i]     = color.r;
+                    data[i + 1] = color.g;
+                    data[i + 2] = color.b;
+                }
+            }
+        }
+    }
+
+    public draw(depth: number, windowLeft: number, windowRight: number, windowTop: number, windowBottom: number) {
         // await debugPause();
 
         if (depth >= maxDepth) {
             return;
+        }
+        const testCol = new Color(255, 0, 0);
+        const testCol2 = new Color(255, 255, 0);
+
+        var drawCalls : [number, number, number, number, number][] = new Array();
+
+        let ceilLowest = 0;
+        let floorHighest = canvas.height;
+
+        for (let x = windowLeft; x < windowRight; x++) {
+            ceilingRegion[x][0] = portalRegion[x][0];
+            ceilingRegion[x][1] = portalRegion[x][1];
+
+            floorRegion[x][0] = portalRegion[x][0];
+            floorRegion[x][1] = portalRegion[x][1];
         }
         
         for (var k = 0; k < this.edges.length; k++) {
@@ -61,14 +119,11 @@ class Sector {
             let left = level.vertices[v.vertA].sub(camera.position).rotate(-camera.angle);
             let right = level.vertices[v.vertB].sub(camera.position).rotate(-camera.angle);
 
-            let draw = true;
-
             const znear = 0.0; //0.001
             if (left.x <= znear && right.x <= znear) {
                 continue;
             }
 
-            
             let leftClipped = left;
             let rightClipped = right;
 
@@ -140,39 +195,38 @@ class Sector {
                 let verScale = (this.ceilingHeight - this.floorHeight) / 8 * v.texScale.x;
 
                 for (var x = x0; x < x1; x++) {
-                    // should use floats here instead
                     let complete = clamp((x - leftX) / (rightX - leftX), 0, 1);
                     let wallStart = Math.floor(lerp(leftY0, rightY0, complete));
                     let floorStart = Math.floor(lerp(leftY1, rightY1, complete));
+                    
+                    if (wallStart >= 0 && wallStart < canvas.height && wallStart > ceilLowest) ceilLowest = wallStart;
+                    if (wallStart < ceilingRegion[x][1]) ceilingRegion[x][1] = wallStart; // dont need to clamp
+                    
+                    if (floorStart >= 0 && floorStart < canvas.height && floorStart < floorHighest) floorHighest = floorStart;
+                    if (floorStart > floorRegion[x][0]) floorRegion[x][0] = floorStart;
+                    
 
                     let z = 1 / lerp(leftZInv, rightZInv, complete);
                     let u = lerp(leftUZ, rightUZ, complete) * z;
                     let texX = Math.floor(u * tex.width) & (tex.width - 1);
 
-                    let y0 = drawRegion[x][0];
-                    let y1 = drawRegion[x][1];
+                    let y0 = portalRegion[x][0];
+                    let y1 = portalRegion[x][1];
                     for (var y = y0; y < y1; y++) {
-                        if (y < wallStart) {
-                            color = this.samplePlane(x, y, true);
-                        } else if (y >= floorStart) {
-                            //color = this.floorColor;
-                            color = this.samplePlane(x, y, false);
-                        } else {
+                        if (y >= wallStart && y < floorStart) {
                             let texY = Math.round((y - wallStart) / (floorStart - wallStart) * tex.height * verScale) & (tex.height - 1);
-                            //color = v.color;
                             color = tex.pixels[texX * tex.height + texY];
                             color = applyFog(color, z);
-                        }
 
-                        let i = (x + y * canvas.width) * 4;
-                        data[i]     = color.r;
-                        data[i + 1] = color.g;
-                        data[i + 2] = color.b;
+                            let i = (x + y * canvas.width) * 4;
+                            data[i]     = color.r;
+                            data[i + 1] = color.g;
+                            data[i + 2] = color.b;
+                        }
                     }
                 }
                 
-                
-            } else { // portal                
+            } else { // portal      
                 let deltaFloor = level.sectors[v.sector].floorHeight - this.floorHeight;
                 let deltaCeiling = level.sectors[v.sector].ceilingHeight - this.ceilingHeight;
 
@@ -201,6 +255,9 @@ class Sector {
                     leftPortalY1  = Math.floor((1 - leftPortalY1) / 2 * canvas.height);
                 }
 
+                let nextWindowTop = canvas.height;
+                let nextWindowBottom = 0;
+
                 for (var x = x0; x < x1; x++) {
                     let complete = clamp((x - leftX) / (rightX - leftX), 0, 1);
                     let topWallStart    = Math.floor(lerp(leftY0, rightY0, complete));
@@ -212,38 +269,55 @@ class Sector {
                         portalStart = floorStart + 1;
                     }
 
+                    if (topWallStart >= 0 && topWallStart < canvas.height && topWallStart > ceilLowest) ceilLowest = topWallStart;
+                    if (topWallStart < ceilingRegion[x][1]) ceilingRegion[x][1] = topWallStart;
+                
+                    if (floorStart >= 0 && floorStart < canvas.height && floorStart < floorHighest) floorHighest = floorStart;
+                    if (floorStart > floorRegion[x][0]) floorRegion[x][0] = floorStart;
+                    
+                    let clampedPortalStart = clamp(portalStart, 0, canvas.height);
+                    if (clampedPortalStart < nextWindowTop) {
+                        nextWindowTop = clampedPortalStart;
+                    }
+
+                    let clampedBottomWallStart = clamp(bottomWallStart, 0, canvas.height);
+                    if (clampedBottomWallStart > nextWindowBottom) {
+                        nextWindowBottom = clampedBottomWallStart;
+                    }
+
                     let z = 1 / lerp(leftZInv, rightZInv, complete);
                     let u = lerp(leftUZ, rightUZ, complete) * z;
                     let texX = Math.floor(u * tex.width) & (tex.width - 1);
 
-                    let y0 = drawRegion[x][0];
-                    let y1 = drawRegion[x][1];
+                    let y0 = portalRegion[x][0];
+                    let y1 = portalRegion[x][1];
                     for (var y = y0; y < y1; y++) {
-                        if (y < topWallStart) {
-                            color = this.samplePlane(x, y, true);
-                        } else if (y < portalStart) {
+                        let i = (x + y * canvas.width) * 4;
+                        if (y >= topWallStart && y < portalStart) {
                             let texY = Math.floor((y - portalStart) / (portalStart - topWallStart) * tex.height * topVerScale) & (tex.height - 1);
                             color = tex.pixels[texX * tex.height + texY];
                             color = applyFog(color, z);
-                        } else if (y < bottomWallStart) {
-                            continue;
-                        } else if (y < floorStart) {
+                            
+                            data[i]     = color.r;
+                            data[i + 1] = color.g;
+                            data[i + 2] = color.b;
+                        }
+                        
+                        if (y >= bottomWallStart && y < floorStart) {
                             let texY = Math.floor((y - bottomWallStart) / (floorStart - bottomWallStart) * tex.height * bottomVerScale) & (tex.height - 1);
                             color = tex.pixels[texX * tex.height + texY];
                             color = applyFog(color, z);
-                        } else {
-                            //color = this.floorColor;
-                            color = this.samplePlane(x, y, false);
+                            
+                            data[i]     = color.r;
+                            data[i + 1] = color.g;
+                            data[i + 2] = color.b;
                         }
 
-                        let i = (x + y * canvas.width) * 4;
-                        data[i]     = color.r;
-                        data[i + 1] = color.g;
-                        data[i + 2] = color.b;
                     }
 
-                    drawRegion[x][0] = clamp(Math.max(portalStart, drawRegion[x][0]), 0, canvas.height);
-                    drawRegion[x][1] = clamp(Math.min(bottomWallStart, drawRegion[x][1]), 0, canvas.height);
+                    portalRegion[x][0] = clamp(Math.max(portalStart, portalRegion[x][0]), 0, canvas.height);
+                    portalRegion[x][1] = clamp(Math.min(bottomWallStart, portalRegion[x][1]), 0, canvas.height);
+
 
                     //if (drawRegion[x][0] > drawRegion[x][1]) {
                     //    drawRegion[x][0] = drawRegion[x][1];
@@ -265,9 +339,31 @@ class Sector {
                     continue;
                 }
 
-                level.sectors[v.sector].draw(depth + 1, leftXS, rightXS);
+                drawCalls.push([v.sector, leftXS, rightXS, nextWindowTop, nextWindowBottom]);
             }
         }
+
+        this.drawFlat(windowLeft, windowRight, windowTop, ceilLowest, true, ceilingRegion);
+        this.drawFlat(windowLeft, windowRight, floorHighest, windowBottom, false, floorRegion);
+
+
+        // for (let x = windowLeft; x < windowRight; x++) {
+        //     let color = testCol;
+        //     let i = (x + windowTop * canvas.width) * 4;
+        //     data[i]     = color.r;
+        //     data[i + 1] = color.g;
+        //     data[i + 2] = color.b;
+
+        //     color = testCol2;
+        //     i = (x + ceilLowest * canvas.width) * 4;
+        //     data[i]     = color.r;
+        //     data[i + 1] = color.g;
+        //     data[i + 2] = color.b;
+        // }
+
+        drawCalls.forEach(c => {
+            level.sectors[c[0]].draw(depth + 1, c[1], c[2], c[3], c[4]);
+        });
     }
 
     public checkAndCollideCam(cam: Camera, checkIfOutside: boolean) {
