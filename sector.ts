@@ -22,30 +22,13 @@ class Sector {
         let h = ceil ? this.ceilingHeight : this.floorHeight;
 
         let yc = (y / canvas.height - 0.5) * 2;
-        let z = -(h - camera.height) / yc;
+        let z = -(h - camera.eyePos) / yc;
         let xc = (x / canvas.width - 0.5) * 2 * z;
 
         let px = (xc * camera.nCos - z * camera.nSin + camera.position.y) * this.texScale;
         let py = (xc * camera.nSin + z * camera.nCos + camera.position.x) * this.texScale;
 
         return new Vec2(px, py);
-    }
-
-    private samplePlane(x: number, y: number, ceil: boolean) : Color {
-        let h = ceil ? this.ceilingHeight : this.floorHeight;
-
-        let yc = (y / canvas.height - 0.5) * 2;
-        let z = -(h - camera.height) / yc;
-        let xc = (x / canvas.width - 0.5) * 2 * z;
-
-        let px = (xc * camera.nCos - z * camera.nSin + camera.position.y) * this.texScale;
-        let py = (xc * camera.nSin + z * camera.nCos + camera.position.x) * this.texScale;
-
-        const tex = ceil ? this.ceilTex : this.floorTex;
-        const w = textures[tex].width;
-        let texX = Math.floor(px) & (w - 1);
-        let texY = Math.floor(py) & (w - 1);
-        return applyFog(textures[tex].pixels[texX + texY * w], z);
     }
 
     private drawFlat(windowLeft: number, windowRight: number, windowTop: number, windowBottom: number, ceil: boolean, region: [number, number][]) {
@@ -55,7 +38,7 @@ class Sector {
             let h = ceil ? this.ceilingHeight : this.floorHeight;
 
             let yc = (y / canvas.height - 0.5) * 2;
-            let z = -(h - camera.height) / yc;
+            let z = -(h - camera.eyePos) / yc;
 
             let p0 = this.projHorizontalPoint(windowLeft, y, ceil);
             let p1 = this.projHorizontalPoint(windowRight, y, ceil);
@@ -84,8 +67,6 @@ class Sector {
         if (depth >= maxDepth) {
             return;
         }
-        const testCol = new Color(255, 0, 0);
-        const testCol2 = new Color(255, 255, 0);
 
         var drawCalls : [number, number, number, number, number][] = new Array();
 
@@ -160,14 +141,14 @@ class Sector {
             const rvz = rightClipped.x * vfov;
 
             // for now, use sector heights
-            let leftY0  = (1 - (this.ceilingHeight - camera.height) / lvz) / 2 * canvas.height;
+            let leftY0  = (1 - (this.ceilingHeight - camera.eyePos) / lvz) / 2 * canvas.height;
             let leftY0S = Math.floor(leftY0);
-            let leftY1  = (1 - (this.floorHeight - camera.height) / lvz) / 2 * canvas.height;
+            let leftY1  = (1 - (this.floorHeight - camera.eyePos) / lvz) / 2 * canvas.height;
             let leftY1S = Math.floor(leftY1);
 
-            let rightY0  = (1 - (this.ceilingHeight - camera.height) / rvz) / 2 * canvas.height;
+            let rightY0  = (1 - (this.ceilingHeight - camera.eyePos) / rvz) / 2 * canvas.height;
             let rightY0S = Math.floor(rightY0);
-            let rightY1  = (1 - (this.floorHeight - camera.height) / rvz) / 2 * canvas.height;
+            let rightY1  = (1 - (this.floorHeight - camera.eyePos) / rvz) / 2 * canvas.height;
             let rightY1S = Math.floor(rightY1);
 
             let x0 = Math.max(leftXS, windowLeft);
@@ -227,17 +208,17 @@ class Sector {
 
                 if (deltaCeiling < 0) {
                     // draw upper wall
-                    leftPortalY0  = (this.ceilingHeight + deltaCeiling - camera.height) / lvz;
+                    leftPortalY0  = (this.ceilingHeight + deltaCeiling - camera.eyePos) / lvz;
                     leftPortalY0  = Math.floor((1 - leftPortalY0) / 2 * canvas.height);
-                    rightPortalY0 = (this.ceilingHeight + deltaCeiling - camera.height) / rvz;
+                    rightPortalY0 = (this.ceilingHeight + deltaCeiling - camera.eyePos) / rvz;
                     rightPortalY0 = Math.floor((1 - rightPortalY0) / 2 * canvas.height);
                 }
 
                 if (deltaFloor > 0) {
                     // draw lower wall
-                    rightPortalY1 = (this.floorHeight + deltaFloor - camera.height) / rvz;
+                    rightPortalY1 = (this.floorHeight + deltaFloor - camera.eyePos) / rvz;
                     rightPortalY1 = Math.floor((1 - rightPortalY1) / 2 * canvas.height);
-                    leftPortalY1  = (this.floorHeight + deltaFloor - camera.height) / lvz;
+                    leftPortalY1  = (this.floorHeight + deltaFloor - camera.eyePos) / lvz;
                     leftPortalY1  = Math.floor((1 - leftPortalY1) / 2 * canvas.height);
                 }
 
@@ -332,21 +313,6 @@ class Sector {
         this.drawFlat(windowLeft, windowRight, windowTop, ceilLowest, true, ceilingRegion);
         this.drawFlat(windowLeft, windowRight, floorHighest, windowBottom, false, floorRegion);
 
-
-        // for (let x = windowLeft; x < windowRight; x++) {
-        //     let color = testCol;
-        //     let i = (x + windowTop * canvas.width) * 4;
-        //     data[i]     = color.r;
-        //     data[i + 1] = color.g;
-        //     data[i + 2] = color.b;
-
-        //     color = testCol2;
-        //     i = (x + ceilLowest * canvas.width) * 4;
-        //     data[i]     = color.r;
-        //     data[i + 1] = color.g;
-        //     data[i + 2] = color.b;
-        // }
-
         drawCalls.forEach(c => {
             level.sectors[c[0]].draw(depth + 1, c[1], c[2], c[3], c[4]);
         });
@@ -364,8 +330,7 @@ class Sector {
             
             let projVec = vec.normalized().scale(proj);
 
-
-            let solid = v.sector == -1 || (this.floorHeight - camera.height) > -0.75 || (this.ceilingHeight - camera.height) < 0.2;
+            let solid = v.sector == -1 || (this.floorHeight - camera.yPos) > 0.75 || (this.ceilingHeight - camera.eyePos) < 0.2;
             if (solid) {
                 let reject = localCam.sub(projVec);
                 let rejMag = reject.mag();

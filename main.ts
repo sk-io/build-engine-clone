@@ -9,6 +9,7 @@ var maxDepth = 16;
 var level : Level;
 var camera : Camera;
 var controls : boolean[] = new Array(6);
+var jump : boolean;
 var lastDate = Date.now();
 var portalRegion : [number, number][];
 var ceilingRegion : [number, number][]; // bottom line
@@ -17,14 +18,17 @@ var fog = 0.75;
 
 interface Camera {
     position: Vec2;
+    yPos: number;
+    eyePos: number;
+    height: number;
     angle: number;
     radius: number;
     sector: number;
     fov: number;
-    height: number;
     yVel: number;
     nSin: number;
     nCos: number;
+    onGround: boolean;
 }
 
 class Color {
@@ -117,6 +121,10 @@ function keyEvent(keyCode, state) {
         if (state)
             editorToggle();
         break;
+    case 32: // Space
+        if (state)
+            jump = true;
+        break;
     }
 }
 
@@ -191,6 +199,7 @@ function gameFrame(delta: number) {
         camera.angle -= turnSpeed;
     if (controls[5])
         camera.angle += turnSpeed;
+    
 
     level.sectors[camera.sector].checkAndCollideCam(camera, true);
     level.sectors[camera.sector].edges.forEach((v) => {
@@ -199,7 +208,35 @@ function gameFrame(delta: number) {
         }
     });
 
-    camera.height = level.sectors[camera.sector].floorHeight + 1.75;
+    let floor = level.sectors[camera.sector].floorHeight;
+    let ceiling = level.sectors[camera.sector].ceilingHeight;
+    
+    if (!camera.onGround) {
+        camera.yVel -= 50 * delta;
+        camera.yPos += camera.yVel * delta;
+        if (camera.yPos < floor) {
+            camera.onGround = true;
+            camera.yVel = 0;
+        }
+        if (camera.yPos + camera.height + 0.2 > ceiling) {
+            camera.yVel = -5;
+            camera.yPos = ceiling - camera.height - 0.2;
+        }
+    }
+
+    if (camera.onGround) {
+        camera.yPos = floor;
+    }
+
+    if (jump) {
+        jump = false;
+        if (camera.onGround) {
+            camera.onGround = false;
+            camera.yVel = 15;
+        }
+    }
+    
+    camera.eyePos = camera.yPos + camera.height;
 
     
     for (var y = 0; y < canvas.height; y++) {
@@ -250,15 +287,18 @@ function frame() {
 
 function run() {
     camera = {
-        position: new Vec2(10.704444467088216, 3.4822864841785632),
+        position: new Vec2(10.7, 3.48),
+        yPos: 0,
+        eyePos: 0,
         radius: 0.5,
         angle: 2.7,
         sector: 0,
         fov: 90,
-        height: 1.75,
         yVel: 0,
         nSin: 0,
         nCos: 0,
+        height: 1.75,
+        onGround: false,
     };
 
     canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -324,7 +364,7 @@ function run() {
             new Edge(7, 3, 2),
             new Edge(3, 0, -1),
             new Edge(0, 4, 0),
-        ],1, 0, -0.4, 5),
+        ],1, 0, -0.2, 5),
     ];
 
     level = new Level(verts, sectors);
