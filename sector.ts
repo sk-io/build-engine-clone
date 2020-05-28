@@ -8,6 +8,7 @@ class Sector {
     floorTex: number;
     ceilTex: number;
     texScale: number;
+    sprites: Sprite[];
 
     constructor(edges: Edge[], floorTex: number = 0, ceilTex: number = 0, floorHeight: number = 0, ceilingHeight: number = 6, texScale: number = 4) {
         this.edges = edges;
@@ -16,6 +17,7 @@ class Sector {
         this.floorHeight = floorHeight;
         this.ceilingHeight = ceilingHeight;
         this.texScale = texScale;
+        this.sprites = new Array();
     }
 
     private projHorizontalPoint(x: number, y: number, ceil: boolean): Vec2 {
@@ -83,9 +85,6 @@ class Sector {
         
         for (var k = 0; k < this.edges.length; k++) {
             let v = this.edges[k];
-
-            const hfov = Math.tan(camera.fov / 2 * to_rad); 
-            const vfov = Math.tan(camera.fov / 2 * to_rad);
             // y is x
             // x is z
             let left = level.vertices[v.vertA].sub(camera.position).rotate(-camera.angle);
@@ -115,9 +114,9 @@ class Sector {
                 rightCutAmount = (rightClipped.x - leftClipped.x) / (right.x - left.x);
                 cutRight = true;
             }
-            let leftX = (leftClipped.y / (leftClipped.x * hfov) + 1) / 2 * canvas.width;
+            let leftX = (leftClipped.y / (leftClipped.x * camera.hfov) + 1) / 2 * canvas.width;
             let leftXS = Math.floor(leftX);
-            let rightX = (rightClipped.y / (rightClipped.x * hfov) + 1) / 2 * canvas.width;
+            let rightX = (rightClipped.y / (rightClipped.x * camera.hfov) + 1) / 2 * canvas.width;
             let rightXS = Math.floor(rightX);
 
             // tex scale, todo: precompute these
@@ -137,8 +136,8 @@ class Sector {
                 continue;
             }
 
-            const lvz = leftClipped.x * vfov;
-            const rvz = rightClipped.x * vfov;
+            const lvz = leftClipped.x * camera.vfov;
+            const rvz = rightClipped.x * camera.vfov;
 
             // for now, use sector heights
             let leftY0  = (1 - (this.ceilingHeight - camera.eyePos) / lvz) / 2 * canvas.height;
@@ -159,7 +158,7 @@ class Sector {
             var tex = textures[v.texture];
 
             if (v.sector == -1) { // normal wall
-                let verScale = (this.ceilingHeight - this.floorHeight) / 8 * v.texScale.x;
+                let verScale = (this.ceilingHeight - this.floorHeight) / 8 * v.texScale.y;
 
                 for (var x = x0; x < x1; x++) {
                     let complete = clamp((x - leftX) / (rightX - leftX), 0, 1);
@@ -197,8 +196,8 @@ class Sector {
                 let deltaFloor = level.sectors[v.sector].floorHeight - this.floorHeight;
                 let deltaCeiling = level.sectors[v.sector].ceilingHeight - this.ceilingHeight;
 
-                let topVerScale = -deltaCeiling / 8 * v.texScale.x;
-                let bottomVerScale = deltaFloor / 8 * v.texScale.x;
+                let topVerScale = -deltaCeiling / 8 * v.texScale.y;
+                let bottomVerScale = deltaFloor / 8 * v.texScale.y;
                 
                 let leftPortalY0 = leftY0S;
                 let rightPortalY0 = rightY0S;
@@ -315,6 +314,14 @@ class Sector {
 
         drawCalls.forEach(c => {
             level.sectors[c[0]].draw(depth + 1, c[1], c[2], c[3], c[4]);
+        });
+        
+        this.drawSprites(windowLeft, windowRight);
+    }
+
+    public drawSprites(windowLeft: number, windowRight: number) {
+        this.sprites.forEach(s => {
+            s.draw(windowLeft, windowRight);
         });
     }
 

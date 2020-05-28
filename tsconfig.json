@@ -12,6 +12,7 @@
         "math.ts",
         "gfxdata.ts",
         "textures.ts",
+        "sprite.ts",
         "sector.ts",
         "editor.ts",
         "main.ts",

@@ -25,6 +25,8 @@ interface Camera {
     radius: number;
     sector: number;
     fov: number;
+    hfov: number;
+    vfov: number;
     yVel: number;
     nSin: number;
     nCos: number;
@@ -291,15 +293,20 @@ function run() {
         yPos: 0,
         eyePos: 0,
         radius: 0.5,
-        angle: 2.7,
+        angle: 0.0439999,
         sector: 0,
         fov: 90,
+        hfov: 0,
+        vfov: 0,
         yVel: 0,
         nSin: 0,
         nCos: 0,
         height: 1.75,
         onGround: false,
     };
+    
+    camera.hfov = Math.tan(camera.fov / 2 * to_rad); 
+    camera.vfov = Math.tan(camera.fov / 2 * to_rad);
 
     canvas = document.getElementById('game') as HTMLCanvasElement;
     ctx = canvas.getContext('2d');
@@ -342,10 +349,10 @@ function run() {
     // todo: optimize sectors to lists of vertices
     let sectors = [
         new Sector([
-            new Edge(0, 1, -1, 1, new Vec2(2, 2)),
-            new Edge(1, 5, 1,  1, new Vec2(2, 2)),
-            new Edge(5, 4, -1, 1, new Vec2(2, 2)),
-            new Edge(4, 0, 3,  1, new Vec2(2, 2)),
+            new Edge(0, 1, -1, 1, new Vec2(5, 2)),
+            new Edge(1, 5, 1,  1, new Vec2(5, 2)),
+            new Edge(5, 4, -1, 1, new Vec2(5, 2)),
+            new Edge(4, 0, 3,  1, new Vec2(5, 2)),
         ], 1, 1, 0.5, 6),
         new Sector([
             new Edge(6, 5, -1),
@@ -366,6 +373,7 @@ function run() {
             new Edge(0, 4, 0),
         ],1, 0, -0.2, 5),
     ];
+    sectors[1].sprites.push(new Sprite(new Vec2(16.31107418243344, 5.244499713824594), 0.5, 0));
 
     level = new Level(verts, sectors);
 
