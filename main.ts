@@ -12,9 +12,7 @@ var controls : boolean[] = new Array(6);
 var jump : boolean;
 var lastDate = Date.now();
 var portalRegion : [number, number][];
-var ceilingRegion : [number, number][]; // bottom line
-var floorRegion : [number, number][]; // top line
-var fog = 0.75;
+var fog = 0.1;
 
 interface Camera {
     position: Vec2;
@@ -92,6 +90,7 @@ function changeSector(sector: number) {
 }
 
 function keyEvent(keyCode, state) {
+    console.log(keyCode);
     switch (keyCode) {
     case 87: // W
         controls[0] = state;
@@ -126,6 +125,18 @@ function keyEvent(keyCode, state) {
     case 32: // Space
         if (state)
             jump = true;
+        break;
+    case 38: // Up Arrow
+        if (!state)
+            break;
+        if (Sector.maxDrawnSectors++ > 100)
+            Sector.maxDrawnSectors = 100;
+        break;
+    case 40: // Down Arrow
+        if (!state)
+            break;
+        if (Sector.maxDrawnSectors-- < 0)
+            Sector.maxDrawnSectors = 0;
         break;
     }
 }
@@ -257,9 +268,8 @@ function gameFrame(delta: number) {
 
     for (var x = 0; x < canvas.width; x++) {
         portalRegion[x] = [0, canvas.height];
-        ceilingRegion[x] = [0, canvas.height];
-        floorRegion[x] = [0, canvas.height];
     }
+    Sector.numDrawnSectors = 0;
     level.sectors[camera.sector].draw(0, 0, canvas.width, 0, canvas.height);
     //await debugPause(1000);
 
@@ -326,8 +336,6 @@ function run() {
     }
 
     portalRegion = new Array(canvas.width);
-    ceilingRegion = new Array(canvas.width);
-    floorRegion = new Array(canvas.width);
 
     window.addEventListener("keydown", keyDown, false);
     window.addEventListener("keyup", keyUp, false);
