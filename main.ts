@@ -11,7 +11,6 @@ var camera : Camera;
 var controls : boolean[] = new Array(6);
 var jump : boolean;
 var lastDate = Date.now();
-var portalRegion : [number, number][];
 var fog = 0.1;
 
 interface Camera {
@@ -184,11 +183,6 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function debugPause(time = 1000) {
-    //ctx.putImageData(imageData, 0, 0);
-    //await sleep(time);
-}
-
 function gameFrame(delta: number) {
     let h = Math.sin(Date.now() * 0.001) * 2.5 + 0.5;
     level.sectors[2].floorHeight = h + 0.2;
@@ -262,17 +256,15 @@ function gameFrame(delta: number) {
         }
     }
     
-
     camera.nSin = Math.sin(-camera.angle);
     camera.nCos = Math.cos(-camera.angle);
 
-    for (var x = 0; x < canvas.width; x++) {
-        portalRegion[x] = [0, canvas.height];
-    }
-    Sector.numDrawnSectors = 0;
-    level.sectors[camera.sector].draw(0, 0, canvas.width, 0, canvas.height);
-    //await debugPause(1000);
+    let windowTop : number[] = new Array(canvas.width).fill(0);
+    let windowBottom : number[] = new Array(canvas.width).fill(canvas.height);
 
+    Sector.numDrawnSectors = 0;
+    level.sectors[camera.sector].draw(0, 0, canvas.width, 0, canvas.height, windowTop, windowBottom);
+    
     //let i = (canvas.width / 2 + canvas.height / 2 * canvas.width) * 4;
     //data[i]     = 255;
     //data[i + 1] = 255;
@@ -334,8 +326,6 @@ function run() {
             data[i + 3] = 255;
         }
     }
-
-    portalRegion = new Array(canvas.width);
 
     window.addEventListener("keydown", keyDown, false);
     window.addEventListener("keyup", keyUp, false);

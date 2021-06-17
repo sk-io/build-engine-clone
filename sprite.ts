@@ -14,6 +14,7 @@ class Sprite {
     }
 
     public draw(windowLeft: number, windowRight: number) {
+        return;
         let t = this.pos.sub(camera.position).rotate(-camera.angle);
 
         if (t.x < 0)
@@ -43,8 +44,8 @@ class Sprite {
             for (let y = y0; y < y1; y++) {
                 let yc = (y - topY) / (bottomY - topY);
 
-                if (y < portalRegion[x][0] || y > portalRegion[x][1])
-                    continue;
+                // if (y < portalRegion[x][0] || y > portalRegion[x][1])
+                //     continue;
 
                 let tx = Math.floor(xc * tex.width) & (tex.width - 1);
                 let ty = Math.floor(yc * tex.height) & (tex.height - 1);

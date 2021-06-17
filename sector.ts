@@ -36,10 +36,10 @@ class Sector {
         return new Vec2(px, py);
     }
 
-    private drawFlat(windowLeft: number, windowRight: number, windowTop: number, windowBottom: number, ceil: boolean, region: [number, number][]) {
+    private drawFlat(windowLeft: number, windowRight: number, yMin: number, yMax: number, ceil: boolean, top: number[], bottom: number[]) {
         let tex = textures[ceil ? this.ceilTex : this.floorTex];
 
-        for (let y = windowTop; y < windowBottom; y++) {
+        for (let y = yMin; y < yMax; y++) {
             let h = ceil ? this.ceilingHeight : this.floorHeight;
 
             let yc = (y / canvas.height - 0.5) * 2;
@@ -50,7 +50,7 @@ class Sector {
 
             for (let x = windowLeft; x < windowRight; x++) {
                 
-                if (y >= region[x - windowLeft][0] && y < region[x - windowLeft][1]) {
+                if (y >= top[x - windowLeft] && y < bottom[x - windowLeft]) {
                     let complete = (x - windowLeft) / (windowRight - windowLeft);
 
                     let tx = Math.floor(lerp(p0.x, p1.x, complete)) & (tex.width - 1);
@@ -66,8 +66,7 @@ class Sector {
         }
     }
 
-    public draw(depth: number, windowLeft: number, windowRight: number, windowTop: number, windowBottom: number) { // , windowRegion: [number, number][]
-        // await debugPause();
+    public draw(depth: number, windowLeft: number, windowRight: number, windowYMin: number, windowYMax: number, windowTop: number[], windowBottom: number[]) { // , windowRegion: [number, number][]
         if (Sector.numDrawnSectors >= Sector.maxDrawnSectors) {
             return;
         }
@@ -77,25 +76,16 @@ class Sector {
             return;
         }
 
-        var drawCalls : [number, number, number, number, number][] = new Array();
-
         let ceilLowest = 0;
         let floorHighest = canvas.height;
 
-        let ceilingRegion : [number, number][] = new Array(windowRight - windowLeft);
-        let floorRegion : [number, number][] = new Array(windowRight - windowLeft);
+        let wallTop : number[] = new Array(windowRight - windowLeft);
+        let wallBottom : number[] = new Array(windowRight - windowLeft);
 
         for (let x = 0; x < windowRight - windowLeft; x++) {
-            ceilingRegion[x] = [0, 0];
-            floorRegion[x]   = [0, 0];
-
-            ceilingRegion[x][0] = portalRegion[windowLeft + x][0];
-            ceilingRegion[x][1] = portalRegion[windowLeft + x][1];
-
-            floorRegion[x][0] = portalRegion[windowLeft + x][0];
-            floorRegion[x][1] = portalRegion[windowLeft + x][1];
+            wallTop[x] = windowBottom[x];
+            wallBottom[x] = windowTop[x];
         }
-
         
         for (var k = 0; k < this.edges.length; k++) {
             let v = this.edges[k];
@@ -171,40 +161,66 @@ class Sector {
 
             var tex = textures[v.texture];
 
+            // todo: fix this
+            // let vline = (x: number, y0: number, y1: number, texX: number, texY0: number, texY1: number, verScale: number, z: number) => {
+            //     for (var y = y0; y < y1; y++) {
+            //         let texY = Math.round((y - texY0) / (y1 - y0) * tex.height * verScale) & (tex.height - 1);
+            //         color = tex.pixels[texX * tex.height + texY];
+            //         color = applyFog(color, z);
+
+            //         let i = (x + y * canvas.width) * 4;
+            //         data[i]     = color.r;
+            //         data[i + 1] = color.g;
+            //         data[i + 2] = color.b;
+            //     }
+            // }
+
+            let debugPoint = (x: number, y: number, color: Color) => {
+                let i = (x + y * canvas.width) * 4;
+                data[i]     = color.r;
+                data[i + 1] = color.g;
+                data[i + 2] = color.b;
+            }
+
             if (v.sector == -1) { // ===================== normal wall =====================
                 let verScale = (this.ceilingHeight - this.floorHeight) / 8 * v.texScale.y;
 
                 for (var x = x0; x < x1; x++) {
                     let complete = clamp((x - leftX) / (rightX - leftX), 0, 1);
                     let wallStart = Math.floor(lerp(leftY0, rightY0, complete));
-                    let floorStart = Math.floor(lerp(leftY1, rightY1, complete));
+                    let wallEnd = Math.floor(lerp(leftY1, rightY1, complete));
                     
                     if (wallStart >= 0 && wallStart < canvas.height && wallStart > ceilLowest) ceilLowest = wallStart;
-                    if (wallStart < ceilingRegion[x - windowLeft][1]) ceilingRegion[x - windowLeft][1] = wallStart; // dont need to clamp
+                    if (wallStart < wallTop[x - windowLeft]) wallTop[x - windowLeft] = wallStart; // dont need to clamp
                     
-                    if (floorStart >= 0 && floorStart < canvas.height && floorStart < floorHighest) floorHighest = floorStart;
-                    if (floorStart > floorRegion[x - windowLeft][0]) floorRegion[x - windowLeft][0] = floorStart;
+                    if (wallEnd >= 0 && wallEnd < canvas.height && wallEnd < floorHighest) floorHighest = wallEnd;
+                    if (wallEnd > wallBottom[x - windowLeft]) wallBottom[x - windowLeft] = wallEnd;
 
                     let z = 1 / lerp(leftZInv, rightZInv, complete);
                     let u = lerp(leftUZ, rightUZ, complete) * z;
                     let texX = Math.floor(u * tex.width) & (tex.width - 1);
 
-                    let y0 = portalRegion[x][0];
-                    let y1 = portalRegion[x][1];
+                    let y0 = Math.max(wallStart, windowTop[x - windowLeft]);
+                    let y1 = Math.min(wallEnd, windowBottom[x - windowLeft]);
                     for (var y = y0; y < y1; y++) {
-                        if (y >= wallStart && y < floorStart) {
-                            let texY = Math.round((y - wallStart) / (floorStart - wallStart) * tex.height * verScale) & (tex.height - 1);
-                            color = tex.pixels[texX * tex.height + texY];
-                            color = applyFog(color, z);
+                        let texY = Math.round((y - wallStart) / (wallEnd - wallStart) * tex.height * verScale) & (tex.height - 1);
+                        color = tex.pixels[texX * tex.height + texY];
+                        color = applyFog(color, z);
 
-                            let i = (x + y * canvas.width) * 4;
-                            data[i]     = color.r;
-                            data[i + 1] = color.g;
-                            data[i + 2] = color.b;
-                        }
+                        let i = (x + y * canvas.width) * 4;
+                        data[i]     = color.r;
+                        data[i + 1] = color.g;
+                        data[i + 2] = color.b;
                     }
+                    //vline(x, y0, y1, texX, verScale, z);
                 }
             } else { // ===================== portal =====================
+                if (x1 - x0 <= 1)
+                    continue;
+
+                let windowTop : number[] = new Array(x1 - x0).fill(0);
+                let windowBottom : number[] = new Array(x1 - x0).fill(canvas.height);
+
                 let deltaFloor = level.sectors[v.sector].floorHeight - this.floorHeight;
                 let deltaCeiling = level.sectors[v.sector].ceilingHeight - this.ceilingHeight;
 
@@ -238,27 +254,27 @@ class Sector {
 
                 for (var x = x0; x < x1; x++) {
                     let complete = clamp((x - leftX) / (rightX - leftX), 0, 1);
-                    let topWallStart    = Math.floor(lerp(leftY0, rightY0, complete));
-                    let portalStart     = Math.floor(lerp(leftPortalY0, rightPortalY0, complete));
-                    let bottomWallStart = Math.ceil(lerp(leftPortalY1, rightPortalY1, complete));
-                    let floorStart      = Math.floor(lerp(leftY1, rightY1, complete));
+                    let topWallStart  = Math.floor(lerp(leftY0, rightY0, complete));
+                    let portalStart   = Math.floor(lerp(leftPortalY0, rightPortalY0, complete));
+                    let portalEnd     = Math.ceil(lerp(leftPortalY1, rightPortalY1, complete));
+                    let bottomWallEnd = Math.floor(lerp(leftY1, rightY1, complete));
 
-                    if (portalStart > floorStart) {
-                        portalStart = floorStart + 1;
+                    if (portalStart > bottomWallEnd) {
+                        portalStart = bottomWallEnd + 1;
                     }
 
                     if (topWallStart >= 0 && topWallStart < canvas.height && topWallStart > ceilLowest) ceilLowest = topWallStart;
-                    if (topWallStart < ceilingRegion[x - windowLeft][1]) ceilingRegion[x - windowLeft][1] = topWallStart;
+                    if (topWallStart < wallTop[x - windowLeft]) wallTop[x - windowLeft] = topWallStart;
                 
-                    if (floorStart >= 0 && floorStart < canvas.height && floorStart < floorHighest) floorHighest = floorStart;
-                    if (floorStart > floorRegion[x - windowLeft][0]) floorRegion[x - windowLeft][0] = floorStart;
+                    if (bottomWallEnd >= 0 && bottomWallEnd < canvas.height && bottomWallEnd < floorHighest) floorHighest = bottomWallEnd;
+                    if (bottomWallEnd > wallBottom[x - windowLeft]) wallBottom[x - windowLeft] = bottomWallEnd;
                     
                     let clampedPortalStart = clamp(portalStart, 0, canvas.height);
                     if (clampedPortalStart < nextWindowTop) {
                         nextWindowTop = clampedPortalStart;
                     }
 
-                    let clampedBottomWallStart = clamp(bottomWallStart, 0, canvas.height);
+                    let clampedBottomWallStart = clamp(portalEnd, 0, canvas.height);
                     if (clampedBottomWallStart > nextWindowBottom) {
                         nextWindowBottom = clampedBottomWallStart;
                     }
@@ -267,8 +283,10 @@ class Sector {
                     let u = lerp(leftUZ, rightUZ, complete) * z;
                     let texX = Math.floor(u * tex.width) & (tex.width - 1);
 
-                    let y0 = portalRegion[x][0];
-                    let y1 = portalRegion[x][1];
+                    let y0 = Math.max(topWallStart, windowTop[x - x0]);
+                    let y1 = Math.min(bottomWallEnd, windowBottom[x - x0]);
+
+                    // vline(x, topWallStart, portalStart, texX, topVerScale, z);
                     for (var y = y0; y < y1; y++) {
                         let i = (x + y * canvas.width) * 4;
                         if (y >= topWallStart && y < portalStart) {
@@ -281,8 +299,8 @@ class Sector {
                             data[i + 2] = color.b;
                         }
                         
-                        if (y >= bottomWallStart && y < floorStart) {
-                            let texY = Math.floor((y - bottomWallStart) / (floorStart - bottomWallStart) * tex.height * bottomVerScale) & (tex.height - 1);
+                        if (y >= portalEnd && y < bottomWallEnd) {
+                            let texY = Math.floor((y - portalEnd) / (bottomWallEnd - portalEnd) * tex.height * bottomVerScale) & (tex.height - 1);
                             color = tex.pixels[texX * tex.height + texY];
                             color = applyFog(color, z);
                             
@@ -290,16 +308,10 @@ class Sector {
                             data[i + 1] = color.g;
                             data[i + 2] = color.b;
                         }
-
                     }
 
-                    portalRegion[x][0] = clamp(Math.max(portalStart, portalRegion[x][0]), 0, canvas.height);
-                    portalRegion[x][1] = clamp(Math.min(bottomWallStart, portalRegion[x][1]), 0, canvas.height);
-
-
-                    //if (drawRegion[x][0] > drawRegion[x][1]) {
-                    //    drawRegion[x][0] = drawRegion[x][1];
-                    //}
+                    // windowTop[x - x0] = clamp(Math.max(portalStart, portalRegion[x][0]), 0, canvas.height);
+                    // portalRegion[x][1] = clamp(Math.min(portalEnd, portalRegion[x][1]), 0, canvas.height);
                 }
                 
                 if (cutLeft) {
@@ -316,24 +328,17 @@ class Sector {
                 if (v.sector == camera.sector) {
                     continue;
                 }
-
                 
-                level.sectors[v.sector].draw(depth + 1, leftXS, rightXS, nextWindowTop, nextWindowBottom);
-                // drawCalls.push([v.sector, leftXS, rightXS, nextWindowTop, nextWindowBottom]);
+                // level.sectors[v.sector].draw(depth + 1, leftXS, rightXS, nextWindowTop, nextWindowBottom);
             }
         }
 
-        this.drawFlat(windowLeft, windowRight, 0, canvas.height, true, ceilingRegion);
-        this.drawFlat(windowLeft, windowRight, 0, canvas.height, false, floorRegion);
-        this.visualizeRegion(windowLeft, ceilingRegion, new Color(255, 0, 0));
+        //this.visualizeRegion(windowLeft, wallTop, new Color(255, 0, 0));
+        //this.visualizeRegion(windowLeft, wallBottom, new Color(0, 255, 0));
 
-        // this.drawFlat(windowLeft, windowRight, windowTop, ceilLowest, true, ceilingRegion);
-        // this.drawFlat(windowLeft, windowRight, floorHighest, windowBottom, false, floorRegion);
+        this.drawFlat(windowLeft, windowRight, windowYMin, ceilLowest, true, windowTop, wallTop);
+        this.drawFlat(windowLeft, windowRight, floorHighest, windowYMax, false, wallBottom, windowBottom);
 
-        // drawCalls.forEach(c => {
-        //     level.sectors[c[0]].draw(depth + 1, c[1], c[2], c[3], c[4]);
-        // });
-        
         //this.drawSprites(windowLeft, windowRight);
     }
 
@@ -373,14 +378,12 @@ class Sector {
         camera.position = camera.position.add(totalPush);
     }
 
-    private visualizeRegion(left: number, region: [number, number][], color: Color) {
+    private visualizeRegion(left: number, region: number[], color: Color) {
         for (let x = 0; x < region.length; x++) {
-            for (let y = 0; y < 2; y++) {
-                let i = (left + x + region[x][y] * canvas.width) * 4;
-                data[i]     = color.r;
-                data[i + 1] = color.g;
-                data[i + 2] = color.b;
-            }
+            let i = (left + x + region[x] * canvas.width) * 4;
+            data[i]     = color.r;
+            data[i + 1] = color.g;
+            data[i + 2] = color.b;
         }
     }
 }
