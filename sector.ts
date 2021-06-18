@@ -218,8 +218,8 @@ class Sector {
                 if (x1 - x0 <= 1)
                     continue;
 
-                let windowTop : number[] = new Array(x1 - x0).fill(0);
-                let windowBottom : number[] = new Array(x1 - x0).fill(canvas.height);
+                let nextWindowTop : number[] = new Array(x1 - x0).fill(0);
+                let nextWindowBottom : number[] = new Array(x1 - x0).fill(canvas.height);
 
                 let deltaFloor = level.sectors[v.sector].floorHeight - this.floorHeight;
                 let deltaCeiling = level.sectors[v.sector].ceilingHeight - this.ceilingHeight;
@@ -249,8 +249,8 @@ class Sector {
                     leftPortalY1  = Math.floor((1 - leftPortalY1) / 2 * canvas.height);
                 }
 
-                let nextWindowTop = canvas.height;
-                let nextWindowBottom = 0;
+                let nextWindowYMin = canvas.height;
+                let nextWindowYMax = 0;
 
                 for (var x = x0; x < x1; x++) {
                     let complete = clamp((x - leftX) / (rightX - leftX), 0, 1);
@@ -270,21 +270,21 @@ class Sector {
                     if (bottomWallEnd > wallBottom[x - windowLeft]) wallBottom[x - windowLeft] = bottomWallEnd;
                     
                     let clampedPortalStart = clamp(portalStart, 0, canvas.height);
-                    if (clampedPortalStart < nextWindowTop) {
-                        nextWindowTop = clampedPortalStart;
+                    if (clampedPortalStart < nextWindowYMin) {
+                        nextWindowYMin = clampedPortalStart;
                     }
 
                     let clampedBottomWallStart = clamp(portalEnd, 0, canvas.height);
-                    if (clampedBottomWallStart > nextWindowBottom) {
-                        nextWindowBottom = clampedBottomWallStart;
+                    if (clampedBottomWallStart > nextWindowYMax) {
+                        nextWindowYMax = clampedBottomWallStart;
                     }
 
                     let z = 1 / lerp(leftZInv, rightZInv, complete);
                     let u = lerp(leftUZ, rightUZ, complete) * z;
                     let texX = Math.floor(u * tex.width) & (tex.width - 1);
 
-                    let y0 = Math.max(topWallStart, windowTop[x - x0]);
-                    let y1 = Math.min(bottomWallEnd, windowBottom[x - x0]);
+                    let y0 = Math.max(topWallStart, windowTop[x - windowLeft]);
+                    let y1 = Math.min(bottomWallEnd, windowBottom[x - windowLeft]);
 
                     // vline(x, topWallStart, portalStart, texX, topVerScale, z);
                     for (var y = y0; y < y1; y++) {
@@ -310,8 +310,8 @@ class Sector {
                         }
                     }
 
-                    // windowTop[x - x0] = clamp(Math.max(portalStart, portalRegion[x][0]), 0, canvas.height);
-                    // portalRegion[x][1] = clamp(Math.min(portalEnd, portalRegion[x][1]), 0, canvas.height);
+                    nextWindowTop[x - x0]    = clamp(Math.max(portalStart, windowTop[x - windowLeft]), 0, canvas.height);
+                    nextWindowBottom[x - x0] = clamp(Math.min(portalEnd, windowBottom[x - windowLeft]), 0, canvas.height);
                 }
                 
                 if (cutLeft) {
@@ -328,18 +328,20 @@ class Sector {
                 if (v.sector == camera.sector) {
                     continue;
                 }
-                
-                // level.sectors[v.sector].draw(depth + 1, leftXS, rightXS, nextWindowTop, nextWindowBottom);
+
+                level.sectors[v.sector].draw(depth + 1, leftXS, rightXS, nextWindowYMin, nextWindowYMax, nextWindowTop, nextWindowBottom);
+                // if (depth == 0) {
+                //     this.visualizeRegion(x0, nextWindowTop, new Color(255, 0, 0));
+                //     this.visualizeRegion(x0, nextWindowBottom, new Color(0, 255, 0));
+                // }
+
             }
         }
-
-        //this.visualizeRegion(windowLeft, wallTop, new Color(255, 0, 0));
-        //this.visualizeRegion(windowLeft, wallBottom, new Color(0, 255, 0));
 
         this.drawFlat(windowLeft, windowRight, windowYMin, ceilLowest, true, windowTop, wallTop);
         this.drawFlat(windowLeft, windowRight, floorHighest, windowYMax, false, wallBottom, windowBottom);
 
-        //this.drawSprites(windowLeft, windowRight);
+        this.drawSprites(windowLeft, windowRight);
     }
 
     public drawSprites(windowLeft: number, windowRight: number) {
