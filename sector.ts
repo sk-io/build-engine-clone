@@ -341,12 +341,12 @@ class Sector {
         this.drawFlat(windowLeft, windowRight, windowYMin, ceilLowest, true, windowTop, wallTop);
         this.drawFlat(windowLeft, windowRight, floorHighest, windowYMax, false, wallBottom, windowBottom);
 
-        this.drawSprites(windowLeft, windowRight);
+        this.drawSprites(windowLeft, windowRight, windowTop, windowBottom);
     }
 
-    public drawSprites(windowLeft: number, windowRight: number) {
+    public drawSprites(windowLeft: number, windowRight: number, windowTop: number[], windowBottom: number[]) {
         this.sprites.forEach(s => {
-            s.draw(windowLeft, windowRight);
+            s.draw(windowLeft, windowRight, windowTop, windowBottom);
         });
     }
 

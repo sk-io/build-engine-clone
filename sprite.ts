@@ -13,8 +13,7 @@ class Sprite {
         this.size = size;
     }
 
-    public draw(windowLeft: number, windowRight: number) {
-        return;
+    public draw(windowLeft: number, windowRight: number, windowTop: number[], windowBottom: number[]) {
         let t = this.pos.sub(camera.position).rotate(-camera.angle);
 
         if (t.x < 0)
@@ -30,9 +29,6 @@ class Sprite {
         let bottomY = Math.floor((1 - y) / 2 * canvas.height);
         let topY = bottomY - Math.floor((this.size.y / t.x) / 2 * canvas.height);
 
-        let y0 = clamp(topY, 0, canvas.height);
-        let y1 = clamp(bottomY, 0, canvas.height);
-
         let leftX = bx - ox;
         let rightX = bx + ox;
         let x0 = clamp(leftX, windowLeft, windowRight);
@@ -41,11 +37,12 @@ class Sprite {
         let tex = textures[this.tex];
         for (let x = x0; x < x1; x++) {
             let xc = (x - leftX) / (rightX - leftX);
+
+            let y0 = Math.max(topY, windowTop[x - windowLeft]);
+            let y1 = Math.min(bottomY, windowBottom[x - windowLeft]);
+
             for (let y = y0; y < y1; y++) {
                 let yc = (y - topY) / (bottomY - topY);
-
-                // if (y < portalRegion[x][0] || y > portalRegion[x][1])
-                //     continue;
 
                 let tx = Math.floor(xc * tex.width) & (tex.width - 1);
                 let ty = Math.floor(yc * tex.height) & (tex.height - 1);
